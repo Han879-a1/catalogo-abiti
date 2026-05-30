@@ -232,6 +232,7 @@
       text-align: center;
       padding: 40px 20px;
       color: #aaa;
+      grid-column: 1 / -1;
     }
 
     @media (min-width: 700px) {
@@ -274,75 +275,124 @@
     <button class="tab" onclick="showCategory('sera', this)">Abiti da Cerimonia</button>
   </div>
 
-  <main id="catalog" class="catalog"></main>
+  <main id="catalog" class="catalog">
+    <div class="empty">Caricamento catalogo...</div>
+  </main>
 
   <div class="send-bar">
     <button class="send-button" onclick="sendWhatsApp()">Richiedi disponibilità e quotazione</button>
   </div>
 
   <script>
-    const WHATSAPP_NUMBER = "393000000000"; // Cambia questo numero. Esempio: 393331234567
+    const WHATSAPP_NUMBER = "393801208966"; // Cambia questo numero. Esempio: 393331234567
 
-    const dresses = [
-      {
-        id: "W001",
-        nome: "Aurora",
-        prezzo: "1490",
-        taglie: "40-44",
-        colore: "Avorio",
-        maniche: "No",
-        stato: "Disponibile",
-        descrizione: "Elegante abito da sposa con corpetto in pizzo ricamato e ampia gonna. Perfetto per una collezione romantica e raffinata.",
-        tipo: "Principessa",
-        foto: "images/WM1/01_front.jpg",
-        coda: "Si",
-        categoria: "sposa"
-      },
-      {
-        id: "W002",
-        nome: "Bianca",
-        prezzo: "1790",
-        taglie: "42-46",
-        colore: "Avorio",
-        maniche: "Lunghe",
-        stato: "Disponibile",
-        descrizione: "Abito da sposa in pizzo con maniche lunghe trasparenti e silhouette elegante. Ideale per boutique con una proposta classica e sofisticata.",
-        tipo: "Sirena",
-        foto: "images/WM2/01_front.jpg",
-        coda: "Si",
-        categoria: "sposa"
-      },
-      {
-        id: "W003",
-        nome: "Diana",
-        prezzo: "1590",
-        taglie: "38-42",
-        colore: "Bianco",
-        maniche: "No",
-        stato: "Su ordinazione",
-        descrizione: "Modello leggero e raffinato con linea A-Line e dettagli delicati. Perfetto per una selezione moderna e luminosa.",
-        tipo: "A-Line",
-        foto: "images/WM3/01_front.jpg",
-        coda: "No",
-        categoria: "sposa"
-      },
-      {
-        id: "W004",
-        nome: "Sofia",
-        prezzo: "1290",
-        taglie: "40-44",
-        colore: "Champagne",
-        maniche: "Corte",
-        stato: "Disponibile",
-        descrizione: "Abito romantico con gonna morbida e corpetto decorato. Una scelta femminile, elegante e delicata per la cerimonia.",
-        tipo: "Principessa",
-        foto: "images/WM4/01_front.jpg",
-        coda: "No",
-        categoria: "sposa"
-      }
-    ];
+    // Qui devi inserire il link CSV pubblicato da Google Sheets.
+    // Esempio: https://docs.google.com/spreadsheets/d/e/XXXXX/pub?gid=0&single=true&output=csv
+    const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSdaLtsMSTcnBm3s6Q9ShnSl6AYV4IY507looA_9xgtdTpudTXOUL8Rve7BuW_rQ-aIFNTML6W7x9R-/pub?gid=0&single=true&output=csv";
 
+    let dresses = [];
     let currentCategory = "sposa";
+
+    function parseCSV(text) {
+      const rows = [];
+      let currentRow = [];
+      let currentValue = "";
+      let insideQuotes = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
+
+        if (char === '"' && insideQuotes && nextChar === '"') {
+          currentValue += '"';
+          i++;
+        } else if (char === '"') {
+          insideQuotes = !insideQuotes;
+        } else if (char === ',' && !insideQuotes) {
+          currentRow.push(currentValue.trim());
+          currentValue = "";
+        } else if ((char === '\n' || char === '\r') && !insideQuotes) {
+          if (currentValue || currentRow.length > 0) {
+            currentRow.push(currentValue.trim());
+            rows.push(currentRow);
+            currentRow = [];
+            currentValue = "";
+          }
+          if (char === '\r' && nextChar === '\n') i++;
+        } else {
+          currentValue += char;
+        }
+      }
+
+      if (currentValue || currentRow.length > 0) {
+        currentRow.push(currentValue.trim());
+        rows.push(currentRow);
+      }
+
+      return rows;
+    }
+
+    function normalizeKey(key) {
+      return key.trim().toLowerCase().replace(/\s+/g, "");
+    }
+
+    function rowToDress(row, headers) {
+      const item = {};
+
+      headers.forEach((header, index) => {
+        item[normalizeKey(header)] = row[index] ? row[index].trim() : "";
+      });
+
+      const id = item.id || "";
+      const categoria = id.toUpperCase().startsWith("E") ? "sera" : "sposa";
+      const cartella = item.cartella || id || "";
+      const foto = item.foto || "01_front.jpg";
+
+      return {
+        id: id,
+        nome: item.nome || "Senza nome",
+        prezzo: item.prezzo || "",
+        taglie: item.taglie || "",
+        colore: item.colore || "",
+        maniche: item.maniche || "",
+        stato: item.stato || "",
+        descrizione: item.descrizione || "",
+        tipo: item.tipo || "",
+        foto: `images/${cartella}/${foto}`,
+        coda: item.coda || "",
+        categoria: categoria
+      };
+    }
+
+    async function loadCatalogFromSheet() {
+      const catalog = document.getElementById("catalog");
+
+      if (GOOGLE_SHEET_CSV_URL === "INCOLLA_QUI_IL_LINK_CSV_DELLA_TABELLA") {
+        catalog.innerHTML = '<div class="empty">Inserisci il link CSV di Google Sheets nel file index.html.</div>';
+        return;
+      }
+
+      try {
+        const response = await fetch(GOOGLE_SHEET_CSV_URL);
+        const csvText = await response.text();
+        const rows = parseCSV(csvText).filter(row => row.some(cell => cell.trim() !== ""));
+
+        if (rows.length < 2) {
+          catalog.innerHTML = '<div class="empty">La tabella è vuota o non contiene dati.</div>';
+          return;
+        }
+
+        const headers = rows[0];
+        dresses = rows.slice(1)
+          .map(row => rowToDress(row, headers))
+          .filter(dress => dress.id);
+
+        renderCatalog();
+      } catch (error) {
+        console.error(error);
+        catalog.innerHTML = '<div class="empty">Errore nel caricamento della tabella. Controlla che il link CSV sia pubblico.</div>';
+      }
+    }
 
     function renderCatalog() {
       const catalog = document.getElementById("catalog");
@@ -365,7 +415,7 @@
                 <div class="name">${dress.nome}</div>
                 <div class="meta">${dress.id} · ${dress.tipo}</div>
               </div>
-              <div class="price">${dress.prezzo} €</div>
+              <div class="price">${dress.prezzo ? dress.prezzo + ' €' : ''}</div>
             </div>
 
             <div class="meta">
@@ -405,7 +455,7 @@
         const id = item.value;
         const name = item.dataset.name;
         const price = item.dataset.price;
-        return `- ${id} ${name} (${price} €)`;
+        return price ? `- ${id} ${name} (${price} €)` : `- ${id} ${name}`;
       });
 
       const message = `Buongiorno,\n\nsono interessato ai seguenti modelli:\n\n${lines.join("\n")}\n\nVorrei ricevere informazioni su disponibilità, condizioni commerciali e quotazione.`;
@@ -413,7 +463,7 @@
       window.open(url, "_blank");
     }
 
-    renderCatalog();
+    loadCatalogFromSheet();
   </script>
 </body>
 </html>
