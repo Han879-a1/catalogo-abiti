@@ -133,18 +133,56 @@
       border: 1px solid #292929;
     }
 
-    .image-wrap {
+    .gallery {
+      position: relative;
       width: 100%;
       aspect-ratio: 4 / 5;
       background: #1a1a1a;
       overflow: hidden;
     }
 
-    .image-wrap img {
+    .gallery img {
       width: 100%;
       height: 100%;
       object-fit: cover;
       display: block;
+    }
+
+    .gallery-button {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1px solid rgba(201,166,107,0.8);
+      background: rgba(0,0,0,0.55);
+      color: #c9a66b;
+      font-size: 22px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .gallery-button.prev {
+      left: 10px;
+    }
+
+    .gallery-button.next {
+      right: 10px;
+    }
+
+    .gallery-counter {
+      position: absolute;
+      right: 10px;
+      bottom: 10px;
+      background: rgba(0,0,0,0.65);
+      color: #f5f1ea;
+      border: 1px solid rgba(201,166,107,0.5);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
     }
 
     .content {
@@ -284,11 +322,9 @@
   </div>
 
   <script>
-    const WHATSAPP_NUMBER = "393801208966"; // Cambia questo numero. Esempio: 393331234567
+    const WHATSAPP_NUMBER = "393000000000"; // Cambia questo numero. Esempio: 393331234567
 
-    // Qui devi inserire il link CSV pubblicato da Google Sheets.
-    // Esempio: https://docs.google.com/spreadsheets/d/e/XXXXX/pub?gid=0&single=true&output=csv
-    const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSdaLtsMSTcnBm3s6Q9ShnSl6AYV4IY507looA_9xgtdTpudTXOUL8Rve7BuW_rQ-aIFNTML6W7x9R-/pub?gid=0&single=true&output=csv";
+    const GOOGLE_SHEET_CSV_URL = "INCOLLA_QUI_IL_LINK_CSV_DELLA_TABELLA";
 
     let dresses = [];
     let currentCategory = "sposa";
@@ -346,7 +382,15 @@
       const id = item.id || "";
       const categoria = id.toUpperCase().startsWith("E") ? "sera" : "sposa";
       const cartella = item.cartella || id || "";
-      const foto = item.foto || "01_front.jpg";
+
+      const photoNames = [item.foto, item.foto2, item.foto3, item.foto4, item.foto5]
+        .filter(photo => photo && photo.trim() !== "");
+
+      if (photoNames.length === 0) {
+        photoNames.push("01_front.jpg");
+      }
+
+      const photos = photoNames.map(photo => `images/${cartella}/${photo}`);
 
       return {
         id: id,
@@ -358,7 +402,8 @@
         stato: item.stato || "",
         descrizione: item.descrizione || "",
         tipo: item.tipo || "",
-        foto: `images/${cartella}/${foto}`,
+        photos: photos,
+        currentPhoto: 0,
         coda: item.coda || "",
         categoria: categoria
       };
@@ -403,37 +448,62 @@
         return;
       }
 
-      catalog.innerHTML = filtered.map(dress => `
-        <article class="card">
-          <div class="image-wrap">
-            <img src="${dress.foto}" alt="${dress.nome}" onerror="this.src='https://via.placeholder.com/800x1000/111111/c9a66b?text=Foto+non+disponibile'" />
-          </div>
+      catalog.innerHTML = filtered.map(dress => {
+        const hasMultiplePhotos = dress.photos.length > 1;
+        const currentPhotoSrc = dress.photos[dress.currentPhoto] || dress.photos[0];
 
-          <div class="content">
-            <div class="top-line">
-              <div>
-                <div class="name">${dress.nome}</div>
-                <div class="meta">${dress.id} · ${dress.tipo}</div>
+        return `
+          <article class="card">
+            <div class="gallery">
+              <img src="${currentPhotoSrc}" alt="${dress.nome}" onerror="this.src='https://via.placeholder.com/800x1000/111111/c9a66b?text=Foto+non+disponibile'" />
+              ${hasMultiplePhotos ? `<button class="gallery-button prev" onclick="changePhoto('${dress.id}', -1)">‹</button>` : ''}
+              ${hasMultiplePhotos ? `<button class="gallery-button next" onclick="changePhoto('${dress.id}', 1)">›</button>` : ''}
+              ${hasMultiplePhotos ? `<div class="gallery-counter">${dress.currentPhoto + 1}/${dress.photos.length}</div>` : ''}
+            </div>
+
+            <div class="content">
+              <div class="top-line">
+                <div>
+                  <div class="name">${dress.nome}</div>
+                  <div class="meta">${dress.id} · ${dress.tipo}</div>
+                </div>
+                <div class="price">${dress.prezzo ? dress.prezzo + ' €' : ''}</div>
               </div>
-              <div class="price">${dress.prezzo ? dress.prezzo + ' €' : ''}</div>
+
+              <div class="meta">
+                Taglie: ${dress.taglie}<br>
+                Colore: ${dress.colore}<br>
+                Maniche: ${dress.maniche} · Coda: ${dress.coda}<br>
+                Stato: ${dress.stato}
+              </div>
+
+              <p class="description">${dress.descrizione}</p>
+
+              <label class="select-line">
+                <input type="checkbox" value="${dress.id}" data-name="${dress.nome}" data-price="${dress.prezzo}" />
+                Seleziona questo modello
+              </label>
             </div>
+          </article>
+        `;
+      }).join("");
+    }
 
-            <div class="meta">
-              Taglie: ${dress.taglie}<br>
-              Colore: ${dress.colore}<br>
-              Maniche: ${dress.maniche} · Coda: ${dress.coda}<br>
-              Stato: ${dress.stato}
-            </div>
+    function changePhoto(id, direction) {
+      const dress = dresses.find(item => item.id === id);
+      if (!dress || dress.photos.length <= 1) return;
 
-            <p class="description">${dress.descrizione}</p>
+      dress.currentPhoto = dress.currentPhoto + direction;
 
-            <label class="select-line">
-              <input type="checkbox" value="${dress.id}" data-name="${dress.nome}" data-price="${dress.prezzo}" />
-              Seleziona questo modello
-            </label>
-          </div>
-        </article>
-      `).join("");
+      if (dress.currentPhoto < 0) {
+        dress.currentPhoto = dress.photos.length - 1;
+      }
+
+      if (dress.currentPhoto >= dress.photos.length) {
+        dress.currentPhoto = 0;
+      }
+
+      renderCatalog();
     }
 
     function showCategory(category, button) {
