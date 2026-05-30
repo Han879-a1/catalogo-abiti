@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Catalogo Abiti</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #faf7f5;
+      color: #222;
+      padding-bottom: 100px;
+    }
+
+    header {
+      padding: 22px 16px;
+      text-align: center;
+      background: #ffffff;
+      border-bottom: 1px solid #eee;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    header h1 {
+      font-size: 24px;
+      margin-bottom: 6px;
+    }
+
+    header p {
+      font-size: 14px;
+      color: #666;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      padding: 14px 12px;
+      background: #fff;
+      position: sticky;
+      top: 78px;
+      z-index: 9;
+      border-bottom: 1px solid #eee;
+    }
+
+    .tab {
+      flex: 1;
+      border: 1px solid #d9c5bd;
+      background: #fff;
+      padding: 10px;
+      border-radius: 999px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .tab.active {
+      background: #6f4e46;
+      color: #fff;
+      border-color: #6f4e46;
+    }
+
+    .catalog {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      padding: 16px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      border: 1px solid #eee;
+    }
+
+    .image-wrap {
+      width: 100%;
+      aspect-ratio: 4 / 5;
+      background: #eee;
+      overflow: hidden;
+    }
+
+    .image-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .content {
+      padding: 14px;
+    }
+
+    .top-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .name {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .price {
+      font-weight: 700;
+      color: #6f4e46;
+      white-space: nowrap;
+    }
+
+    .meta {
+      font-size: 14px;
+      color: #555;
+      line-height: 1.5;
+      margin-bottom: 10px;
+    }
+
+    .description {
+      font-size: 14px;
+      color: #333;
+      line-height: 1.45;
+      margin-bottom: 14px;
+    }
+
+    label.select-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid #e2d3ce;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 600;
+      background: #fffaf8;
+    }
+
+    input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      accent-color: #6f4e46;
+    }
+
+    .send-bar {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.96);
+      border-top: 1px solid #eee;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+      z-index: 20;
+    }
+
+    .send-button {
+      width: 100%;
+      border: none;
+      background: #6f4e46;
+      color: white;
+      padding: 15px;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: #777;
+    }
+
+    @media (min-width: 700px) {
+      .catalog {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (min-width: 1000px) {
+      .catalog {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Catalogo Abiti</h1>
+    <p>Seleziona i modelli che ti interessano e invia la richiesta su WhatsApp</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showCategory('sposa', this)">Abiti da Sposa</button>
+    <button class="tab" onclick="showCategory('sera', this)">Abiti da Sera</button>
+  </div>
+
+  <main id="catalog" class="catalog"></main>
+
+  <div class="send-bar">
+    <button class="send-button" onclick="sendWhatsApp()">Invia richiesta su WhatsApp</button>
+  </div>
+
+  <script>
+    const WHATSAPP_NUMBER = "393801208966"; // Sostituisci con il tuo numero, esempio: 393331234567
+
+    const dresses = [
+      {
+        id: "W001",
+        nome: "Aurora",
+        prezzo: "1490",
+        taglie: "40-44",
+        colore: "Avorio",
+        maniche: "No",
+        stato: "Disponibile",
+        descrizione: "Elegante abito da sposa con corpetto in pizzo ricamato e ampia gonna. Perfetto per una sposa romantica e raffinata.",
+        tipo: "Principessa",
+        foto: "images/WM1/01_front.jpg",
+        coda: "Si",
+        categoria: "sposa"
+      },
+      {
+        id: "W002",
+        nome: "Bianca",
+        prezzo: "1790",
+        taglie: "42-46",
+        colore: "Avorio",
+        maniche: "Lunghe",
+        stato: "Disponibile",
+        descrizione: "Abito da sposa in pizzo con maniche lunghe trasparenti e silhouette elegante. Ideale per una cerimonia classica.",
+        tipo: "Sirena",
+        foto: "images/WM2/01_front.jpg",
+        coda: "Si",
+        categoria: "sposa"
+      },
+      {
+        id: "W003",
+        nome: "Diana",
+        prezzo: "1590",
+        taglie: "38-42",
+        colore: "Bianco",
+        maniche: "No",
+        stato: "Su ordinazione",
+        descrizione: "Modello leggero e raffinato con linea A-Line e dettagli delicati. Perfetto per matrimoni eleganti e luminosi.",
+        tipo: "A-Line",
+        foto: "images/WM3/01_front.jpg",
+        coda: "No",
+        categoria: "sposa"
+      },
+      {
+        id: "W004",
+        nome: "Sofia",
+        prezzo: "1290",
+        taglie: "40-44",
+        colore: "Champagne",
+        maniche: "Corte",
+        stato: "Disponibile",
+        descrizione: "Abito romantico con gonna morbida e corpetto decorato. Una scelta femminile, elegante e delicata.",
+        tipo: "Principessa",
+        foto: "images/WM4/01_front.jpg",
+        coda: "No",
+        categoria: "sposa"
+      }
+    ];
+
+    let currentCategory = "sposa";
+
+    function renderCatalog() {
+      const catalog = document.getElementById("catalog");
+      const filtered = dresses.filter(dress => dress.categoria === currentCategory);
+
+      if (filtered.length === 0) {
+        catalog.innerHTML = '<div class="empty">Nessun abito disponibile in questa categoria.</div>';
+        return;
+      }
+
+      catalog.innerHTML = filtered.map(dress => `
+        <article class="card">
+          <div class="image-wrap">
+            <img src="${dress.foto}" alt="${dress.nome}" onerror="this.src='https://via.placeholder.com/800x1000?text=Foto+non+disponibile'" />
+          </div>
+          <div class="content">
+            <div class="top-line">
+              <div>
+                <div class="name">${dress.nome}</div>
+                <div class="meta">${dress.id} · ${dress.tipo}</div>
+              </div>
+              <div class="price">${dress.prezzo} €</div>
+            </div>
+            <div class="meta">
+              Taglie: ${dress.taglie}<br>
+              Colore: ${dress.colore}<br>
+              Maniche: ${dress.maniche} · Coda: ${dress.coda}<br>
+              Stato: ${dress.stato}
+            </div>
+            <p class="description">${dress.descrizione}</p>
+            <label class="select-line">
+              <input type="checkbox" value="${dress.id}" data-name="${dress.nome}" data-price="${dress.prezzo}" />
+              Seleziona questo modello
+            </label>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function showCategory(category, button) {
+      currentCategory = category;
+      document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
+      button.classList.add("active");
+      renderCatalog();
+    }
+
+    function sendWhatsApp() {
+      const selected = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'));
+
+      if (selected.length === 0) {
+        alert("Seleziona almeno un modello.");
+        return;
+      }
+
+      const lines = selected.map(item => {
+        const id = item.value;
+        const name = item.dataset.name;
+        const price = item.dataset.price;
+        return `- ${id} ${name} (${price} €)`;
+      });
+
+      const message = `Ciao! Mi interessano questi modelli:\n\n${lines.join("\n")}\n\nVorrei ricevere maggiori informazioni.`;
+      const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+      window.open(url, "_blank");
+    }
+
+    renderCatalog();
+  </script>
+</body>
+</html>
