@@ -118,6 +118,7 @@
 
     .filters {
       display: flex;
+      flex-direction: column;
       gap: 10px;
       padding: 12px 16px;
       background: #0b0b0b;
@@ -125,8 +126,8 @@
     }
 
     .filters select {
-      flex: 1;
-      padding: 10px;
+      width: 100%;
+      padding: 12px;
       border-radius: 999px;
       border: 1px solid #3a3a3a;
       background: #111;
@@ -213,11 +214,11 @@
       justify-content: space-between;
       gap: 10px;
       align-items: flex-start;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
 
     .name {
-      font-size: 20px;
+      font-size: 21px;
       font-weight: 700;
       color: #fff;
     }
@@ -228,7 +229,7 @@
       color: #c9a66b;
       white-space: nowrap;
       font-size: 14px;
-      line-height: 1.4;
+      line-height: 1.45;
     }
 
     .recommended {
@@ -238,10 +239,10 @@
     }
 
     .meta {
-      font-size: 14px;
+      font-size: 15px;
       color: #c8c0b7;
       line-height: 1.5;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
     }
 
     .description {
@@ -302,6 +303,16 @@
     }
 
     @media (min-width: 700px) {
+      .filters {
+        max-width: 1100px;
+        margin: 0 auto;
+        flex-direction: row;
+      }
+
+      .filters select {
+        flex: 1;
+      }
+
       .catalog {
         grid-template-columns: repeat(2, 1fr);
       }
@@ -350,6 +361,8 @@
       <option value="">Ordine standard</option>
       <option value="asc">Prezzo crescente</option>
       <option value="desc">Prezzo decrescente</option>
+      <option value="retailAsc">Prezzo vendita crescente</option>
+      <option value="retailDesc">Prezzo vendita decrescente</option>
     </select>
   </div>
 
@@ -414,12 +427,21 @@
 
     function cleanPrice(value) {
       if (!value) return "";
-      return String(value).replace("€", "").trim();
+      return String(value)
+        .replace("€", "")
+        .replace(/\s+/g, "")
+        .trim();
     }
 
     function priceToNumber(value) {
       if (!value) return 0;
-      return Number(String(value).replace("€", "").replace(",", ".").trim()) || 0;
+      return Number(
+        String(value)
+          .replace("€", "")
+          .replace(/\s+/g, "")
+          .replace(",", ".")
+          .trim()
+      ) || 0;
     }
 
     function rowToDress(row, headers) {
@@ -444,7 +466,7 @@
 
       return {
         id: id,
-        nome: item.nome || "Senza nome",
+        nome: item.nome || id || "Senza nome",
         prezzo: cleanPrice(item.prezzo),
         prezzoConsigliato: cleanPrice(item.prezzoconsigliato),
         taglie: item.taglie || "",
@@ -489,6 +511,7 @@
 
     function populateTypeFilter() {
       const select = document.getElementById("typeFilter");
+
       const types = [...new Set(
         dresses
           .filter(dress => dress.categoria === currentCategory)
@@ -513,9 +536,17 @@
 
       if (sortOrder) {
         filtered = [...filtered].sort((a, b) => {
-          const priceA = priceToNumber(a.prezzo);
-          const priceB = priceToNumber(b.prezzo);
-          return sortOrder === "asc" ? priceA - priceB : priceB - priceA;
+          const wholesaleA = priceToNumber(a.prezzo);
+          const wholesaleB = priceToNumber(b.prezzo);
+          const retailA = priceToNumber(a.prezzoConsigliato);
+          const retailB = priceToNumber(b.prezzoConsigliato);
+
+          if (sortOrder === "asc") return wholesaleA - wholesaleB;
+          if (sortOrder === "desc") return wholesaleB - wholesaleA;
+          if (sortOrder === "retailAsc") return retailA - retailB;
+          if (sortOrder === "retailDesc") return retailB - retailA;
+
+          return 0;
         });
       }
 
@@ -541,26 +572,22 @@
               <div class="top-line">
                 <div>
                   <div class="name">${dress.nome}</div>
-                  <div class="meta">${dress.id} · ${dress.tipo}</div>
                 </div>
 
                 <div class="price-block">
                   ${dress.prezzo ? `<div>Ingrosso: ${dress.prezzo} €</div>` : ''}
-                  ${dress.prezzoConsigliato ? `<div class="recommended">Consigliato: ${dress.prezzoConsigliato} €</div>` : ''}
+                  ${dress.prezzoConsigliato ? `<div class="recommended">Vendita: ${dress.prezzoConsigliato} €</div>` : ''}
                 </div>
               </div>
 
               <div class="meta">
-                Taglie: ${dress.taglie}<br>
-                Colore: ${dress.colore}<br>
-                Maniche: ${dress.maniche} · Coda: ${dress.coda}<br>
-                Stato: ${dress.stato}
+                Taglie: ${dress.taglie}
               </div>
 
               <p class="description">${dress.descrizione}</p>
 
               <label class="select-line">
-                <input type="checkbox" value="${dress.id}" data-name="${dress.nome}" data-price="${dress.prezzo}" />
+                <input type="checkbox" value="${dress.id}" data-name="${dress.nome}" data-price="${dress.prezzo}" data-retail="${dress.prezzoConsigliato}" />
                 Seleziona questo modello
               </label>
             </div>
@@ -620,7 +647,19 @@
         const id = item.value;
         const name = item.dataset.name;
         const price = item.dataset.price;
-        return price ? `- ${id} ${name} (${price} €)` : `- ${id} ${name}`;
+        const retail = item.dataset.retail;
+
+        let line = `- ${id} ${name}`;
+
+        if (price) {
+          line += ` | Ingrosso: ${price} €`;
+        }
+
+        if (retail) {
+          line += ` | Vendita: ${retail} €`;
+        }
+
+        return line;
       });
 
       const message = `Buongiorno,\n\nsono interessato ai seguenti modelli:\n\n${lines.join("\n")}\n\nVorrei ricevere informazioni su disponibilità, condizioni commerciali e quotazione.`;
