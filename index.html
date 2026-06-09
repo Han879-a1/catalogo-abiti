@@ -117,9 +117,6 @@
     }
 
     .filters {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
       padding: 12px 16px;
       background: #0b0b0b;
       border-bottom: 1px solid #242424;
@@ -306,11 +303,6 @@
       .filters {
         max-width: 1100px;
         margin: 0 auto;
-        flex-direction: row;
-      }
-
-      .filters select {
-        flex: 1;
       }
 
       .catalog {
@@ -355,14 +347,6 @@
   <div class="filters">
     <select id="typeFilter" onchange="renderCatalog()">
       <option value="">Tutti i tipi</option>
-    </select>
-
-    <select id="priceSort" onchange="renderCatalog()">
-      <option value="">Ordine standard</option>
-      <option value="asc">Prezzo crescente</option>
-      <option value="desc">Prezzo decrescente</option>
-      <option value="retailAsc">Prezzo vendita crescente</option>
-      <option value="retailDesc">Prezzo vendita decrescente</option>
     </select>
   </div>
 
@@ -433,15 +417,17 @@
         .trim();
     }
 
-    function priceToNumber(value) {
-      if (!value) return 0;
-      return Number(
-        String(value)
-          .replace("€", "")
-          .replace(/\s+/g, "")
-          .replace(",", ".")
-          .trim()
-      ) || 0;
+    function simplifyDressType(type) {
+      const text = String(type || "").toLowerCase();
+
+      if (text.includes("trasformabile")) return "Trasformabile";
+      if (text.includes("fit") || text.includes("flare")) return "Fit & Flare";
+      if (text.includes("sirena")) return "Sirena";
+      if (text.includes("principessa")) return "Principessa";
+      if (text.includes("linea a") || text.includes("a-line") || text.includes("aline")) return "A-Line";
+      if (text.includes("glamour") || text.includes("luxury") || text.includes("regale")) return "Glamour";
+
+      return type ? String(type).replace(/^Abito\s+/i, "").trim() : "";
     }
 
     function rowToDress(row, headers) {
@@ -464,6 +450,9 @@
 
       const photos = photoNames.map(photo => `images/${cartella}/${photo}`);
 
+      const tipoOriginale = item.tipo || "";
+      const tipoBreve = simplifyDressType(tipoOriginale);
+
       return {
         id: id,
         nome: item.nome || id || "Senza nome",
@@ -474,7 +463,8 @@
         maniche: item.maniche || "",
         stato: item.stato || "",
         descrizione: item.descrizione || "",
-        tipo: item.tipo || "",
+        tipo: tipoBreve,
+        tipoOriginale: tipoOriginale,
         photos: photos,
         currentPhoto: 0,
         coda: item.coda || "",
@@ -512,42 +502,36 @@
     function populateTypeFilter() {
       const select = document.getElementById("typeFilter");
 
-      const types = [...new Set(
+      const preferredOrder = [
+        "Sirena",
+        "Principessa",
+        "A-Line",
+        "Fit & Flare",
+        "Trasformabile",
+        "Glamour"
+      ];
+
+      const existingTypes = [...new Set(
         dresses
           .filter(dress => dress.categoria === currentCategory)
           .map(dress => dress.tipo)
           .filter(Boolean)
-      )].sort();
+      )];
+
+      const sortedTypes = preferredOrder.filter(type => existingTypes.includes(type));
 
       select.innerHTML = '<option value="">Tutti i tipi</option>' +
-        types.map(type => `<option value="${type}">${type}</option>`).join("");
+        sortedTypes.map(type => `<option value="${type}">${type}</option>`).join("");
     }
 
     function renderCatalog() {
       const catalog = document.getElementById("catalog");
       const selectedType = document.getElementById("typeFilter")?.value || "";
-      const sortOrder = document.getElementById("priceSort")?.value || "";
 
       let filtered = dresses.filter(dress => dress.categoria === currentCategory);
 
       if (selectedType) {
         filtered = filtered.filter(dress => dress.tipo === selectedType);
-      }
-
-      if (sortOrder) {
-        filtered = [...filtered].sort((a, b) => {
-          const wholesaleA = priceToNumber(a.prezzo);
-          const wholesaleB = priceToNumber(b.prezzo);
-          const retailA = priceToNumber(a.prezzoConsigliato);
-          const retailB = priceToNumber(b.prezzoConsigliato);
-
-          if (sortOrder === "asc") return wholesaleA - wholesaleB;
-          if (sortOrder === "desc") return wholesaleB - wholesaleA;
-          if (sortOrder === "retailAsc") return retailA - retailB;
-          if (sortOrder === "retailDesc") return retailB - retailA;
-
-          return 0;
-        });
       }
 
       if (filtered.length === 0) {
@@ -629,7 +613,6 @@
       button.classList.add("active");
 
       document.getElementById("typeFilter").value = "";
-      document.getElementById("priceSort").value = "";
 
       populateTypeFilter();
       renderCatalog();
